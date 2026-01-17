@@ -163,6 +163,26 @@ TcpLedbat::BaseDelay()
     return MinCircBuf(m_baseHistory);
 }
 
+double
+TcpLedbat::ComputeGain ()
+{
+    uint64_t base_delay = BaseDelay();
+
+    if (base_delay == 0 || base_delay == ~0U)
+    {
+        return 1.0;
+    }
+
+    double base = static_cast<double>(base_delay);
+    double target = static_cast<double>(m_target.GetMilliSeconds());
+
+    double ratio = std::ceil(2.0 * target / base);
+    double denom = std::min(16.0, ratio);
+
+    return 1.0 / denom;
+}
+
+
 void
 TcpLedbat::IncreaseWindow(Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
 {
@@ -228,7 +248,8 @@ TcpLedbat::CongestionAvoidance(Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
   
 
     if(delayRatio < 1.0){
-        W += m_gain;
+        double gain = ComputeGain();
+        W += gain;
     } else {
         double md = m_gain - W * (delayRatio - 1.0);
         W += std::max(md, -W / 2.0);

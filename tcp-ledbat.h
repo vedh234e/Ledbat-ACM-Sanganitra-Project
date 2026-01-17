@@ -163,6 +163,9 @@ class TcpLedbat : public TcpNewReno
      * @param owd The new delay
      * @param maxlen The maximum permitted length
      */
+
+    double ComputeGain ();
+
     void AddDelay(OwdCircBuf& cb, uint32_t owd, uint32_t maxlen);
 
     /**
