@@ -38,7 +38,7 @@
  *     restores the exact original scheduling.
  */
 
-#include "ledbat-plus-plus-modified.h"
+#include "tcp-ledbat-plus-plus-modified.h"
 
 #include "tcp-socket-state.h"
 
@@ -51,53 +51,53 @@
 namespace ns3
 {
 
-    NS_LOG_COMPONENT_DEFINE("TcpLedbatPlusPlus");
-    NS_OBJECT_ENSURE_REGISTERED(TcpLedbatPlusPlus);
+    NS_LOG_COMPONENT_DEFINE("TcpLedbatPlusPlusModified");
+    NS_OBJECT_ENSURE_REGISTERED(TcpLedbatPlusPlusModified);
 
     TypeId
-    TcpLedbatPlusPlus::GetTypeId()
+    TcpLedbatPlusPlusModified::GetTypeId()
     {
         static TypeId tid =
-            TypeId("ns3::TcpLedbatPlusPlus")
+            TypeId("ns3::TcpLedbatPlusPlusModified")
                 .SetParent<TcpNewReno>()
-                .AddConstructor<TcpLedbatPlusPlus>()
+                .AddConstructor<TcpLedbatPlusPlusModified>()
                 .SetGroupName("Internet")
                 // ---- original attributes (unchanged) --------------------------------
                 .AddAttribute("TargetDelay",
                               "Upper bound for the adaptive target queue delay "
                               "(also used as the fixed target when AdaptiveTarget is off)",
                               TimeValue(MilliSeconds(60)),
-                              MakeTimeAccessor(&TcpLedbatPlusPlus::m_target),
+                              MakeTimeAccessor(&TcpLedbatPlusPlusModified::m_target),
                               MakeTimeChecker())
                 .AddAttribute("BaseHistoryLen",
                               "Number of Base delay samples",
                               UintegerValue(10),
-                              MakeUintegerAccessor(&TcpLedbatPlusPlus::m_baseHistoLen),
+                              MakeUintegerAccessor(&TcpLedbatPlusPlusModified::m_baseHistoLen),
                               MakeUintegerChecker<uint32_t>(1))
                 .AddAttribute("NoiseFilterLen",
                               "Number of Current delay samples",
                               UintegerValue(4),
-                              MakeUintegerAccessor(&TcpLedbatPlusPlus::m_noiseFilterLen),
+                              MakeUintegerAccessor(&TcpLedbatPlusPlusModified::m_noiseFilterLen),
                               MakeUintegerChecker<uint32_t>(1))
                 .AddAttribute("Gain",
                               "Offset Gain",
                               DoubleValue(1.0),
-                              MakeDoubleAccessor(&TcpLedbatPlusPlus::m_gain),
+                              MakeDoubleAccessor(&TcpLedbatPlusPlusModified::m_gain),
                               MakeDoubleChecker<double>(1e-6))
                 .AddAttribute("SSParam",
                               "Possibility of Slow Start",
                               EnumValue(DO_SLOWSTART),
-                              MakeEnumAccessor<SlowStartType>(&TcpLedbatPlusPlus::SetDoSs),
+                              MakeEnumAccessor<SlowStartType>(&TcpLedbatPlusPlusModified::SetDoSs),
                               MakeEnumChecker(DO_SLOWSTART, "yes", DO_NOT_SLOWSTART, "no"))
                 .AddAttribute("MinCwnd",
                               "Minimum cWnd for Ledbat",
                               UintegerValue(2),
-                              MakeUintegerAccessor(&TcpLedbatPlusPlus::m_minCwnd),
+                              MakeUintegerAccessor(&TcpLedbatPlusPlusModified::m_minCwnd),
                               MakeUintegerChecker<uint32_t>(1))
                 .AddAttribute("AllowedIncrease",
                               "Allowed Increase",
                               DoubleValue(1.0),
-                              MakeDoubleAccessor(&TcpLedbatPlusPlus::m_allowedIncrease),
+                              MakeDoubleAccessor(&TcpLedbatPlusPlusModified::m_allowedIncrease),
                               MakeDoubleChecker<double>(1e-6))
                 // ---- NEW attributes for Modification 1: Adaptive Target -------------
                 .AddAttribute("MinTargetDelay",
@@ -105,20 +105,20 @@ namespace ns3
                               "Effective target = clamp(2*base_delay, MinTargetDelay, TargetDelay). "
                               "Set equal to TargetDelay to disable adaptive behaviour.",
                               TimeValue(MilliSeconds(20)),
-                              MakeTimeAccessor(&TcpLedbatPlusPlus::m_minTarget),
+                              MakeTimeAccessor(&TcpLedbatPlusPlusModified::m_minTarget),
                               MakeTimeChecker())
                 // ---- NEW attributes for Modification 2: Dynamic Slowdown Interval ---
                 .AddAttribute("SlowdownMultMin",
                               "Minimum next-slowdown multiplier (used under high queue pressure). "
                               "RFC default is 9; set both Min and Max to 9 to restore original.",
                               UintegerValue(6),
-                              MakeUintegerAccessor(&TcpLedbatPlusPlus::m_slowdownMultMin),
+                              MakeUintegerAccessor(&TcpLedbatPlusPlusModified::m_slowdownMultMin),
                               MakeUintegerChecker<uint32_t>(1))
                 .AddAttribute("SlowdownMultMax",
                               "Maximum next-slowdown multiplier (used under low queue pressure). "
                               "RFC default is 9; set both Min and Max to 9 to restore original.",
                               UintegerValue(12),
-                              MakeUintegerAccessor(&TcpLedbatPlusPlus::m_slowdownMultMax),
+                              MakeUintegerAccessor(&TcpLedbatPlusPlusModified::m_slowdownMultMax),
                               MakeUintegerChecker<uint32_t>(1));
         return tid;
     }
@@ -128,7 +128,7 @@ namespace ns3
     // ---------------------------------------------------------------------------
 
     void
-    TcpLedbatPlusPlus::SetDoSs(SlowStartType doSS)
+    TcpLedbatPlusPlusModified::SetDoSs(SlowStartType doSS)
     {
         NS_LOG_FUNCTION(this << doSS);
         m_doSs = doSS;
@@ -150,7 +150,7 @@ namespace ns3
     // Before any base sample:     fall back to m_target (original behaviour)
     // ---------------------------------------------------------------------------
     Time
-    TcpLedbatPlusPlus::ComputeEffectiveTarget() const
+    TcpLedbatPlusPlusModified::ComputeEffectiveTarget() const
     {
         uint32_t base = m_baseHistory.buffer.empty()
                             ? 0
@@ -188,7 +188,7 @@ namespace ns3
     // the original RFC behaviour.
     // ---------------------------------------------------------------------------
     uint32_t
-    TcpLedbatPlusPlus::ComputeSlowdownMultiplier(uint32_t queueDelayAtExit) const
+    TcpLedbatPlusPlusModified::ComputeSlowdownMultiplier(uint32_t queueDelayAtExit) const
     {
         Time effectiveTarget = ComputeEffectiveTarget();
         double targetMs = static_cast<double>(effectiveTarget.GetMilliSeconds());
@@ -216,7 +216,7 @@ namespace ns3
     // Constructors / destructor
     // ---------------------------------------------------------------------------
 
-    TcpLedbatPlusPlus::TcpLedbatPlusPlus()
+    TcpLedbatPlusPlusModified::TcpLedbatPlusPlusModified()
         : TcpNewReno(),
           m_minTarget(MilliSeconds(20)),
           m_slowdownMultMin(6),
@@ -231,14 +231,14 @@ namespace ns3
     }
 
     void
-    TcpLedbatPlusPlus::InitCircBuf(OwdCircBuf &buffer)
+    TcpLedbatPlusPlusModified::InitCircBuf(OwdCircBuf &buffer)
     {
         NS_LOG_FUNCTION(this);
         buffer.buffer.clear();
         buffer.min = 0;
     }
 
-    TcpLedbatPlusPlus::TcpLedbatPlusPlus(const TcpLedbatPlusPlus &sock)
+    TcpLedbatPlusPlusModified::TcpLedbatPlusPlusModified(const TcpLedbatPlusPlusModified &sock)
         : TcpNewReno(sock)
     {
         NS_LOG_FUNCTION(this);
@@ -259,19 +259,19 @@ namespace ns3
         m_slowdownMultMax = sock.m_slowdownMultMax; // MOD 2
     }
 
-    TcpLedbatPlusPlus::~TcpLedbatPlusPlus()
+    TcpLedbatPlusPlusModified::~TcpLedbatPlusPlusModified()
     {
         NS_LOG_FUNCTION(this);
     }
 
     Ptr<TcpCongestionOps>
-    TcpLedbatPlusPlus::Fork()
+    TcpLedbatPlusPlusModified::Fork()
     {
-        return CopyObject<TcpLedbatPlusPlus>(this);
+        return CopyObject<TcpLedbatPlusPlusModified>(this);
     }
 
     std::string
-    TcpLedbatPlusPlus::GetName() const
+    TcpLedbatPlusPlusModified::GetName() const
     {
         return "TcpLedbatPlusPlus";
     }
@@ -281,7 +281,7 @@ namespace ns3
     // ---------------------------------------------------------------------------
 
     uint32_t
-    TcpLedbatPlusPlus::MinCircBuf(OwdCircBuf &b)
+    TcpLedbatPlusPlusModified::MinCircBuf(OwdCircBuf &b)
     {
         NS_LOG_FUNCTION_NOARGS();
         if (b.buffer.empty())
@@ -295,14 +295,14 @@ namespace ns3
     }
 
     uint32_t
-    TcpLedbatPlusPlus::CurrentDelay(FilterFunction filter)
+    TcpLedbatPlusPlusModified::CurrentDelay(FilterFunction filter)
     {
         NS_LOG_FUNCTION(this);
         return filter(m_noiseFilter);
     }
 
     uint32_t
-    TcpLedbatPlusPlus::BaseDelay()
+    TcpLedbatPlusPlusModified::BaseDelay()
     {
         NS_LOG_FUNCTION(this);
         return MinCircBuf(m_baseHistory);
@@ -314,7 +314,7 @@ namespace ns3
     // the GAIN formula is consistent with the rest of the algorithm.
     // ---------------------------------------------------------------------------
     double
-    TcpLedbatPlusPlus::ComputeGain()
+    TcpLedbatPlusPlusModified::ComputeGain()
     {
         uint64_t base_delay = BaseDelay();
 
@@ -339,7 +339,7 @@ namespace ns3
     // Everything else is identical to the original.
     // ---------------------------------------------------------------------------
     void
-    TcpLedbatPlusPlus::IncreaseWindow(Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
+    TcpLedbatPlusPlusModified::IncreaseWindow(Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
     {
         NS_LOG_FUNCTION(this << tcb << segmentsAcked);
         if (tcb->m_cWnd.Get() <= tcb->m_segmentSize &&
@@ -353,7 +353,7 @@ namespace ns3
 
         if (tcb->m_initialSs && (m_flag & LEDBAT_VALID_OWD))
         {
-            uint32_t currentDelay = CurrentDelay(&TcpLedbatPlusPlus::MinCircBuf);
+            uint32_t currentDelay = CurrentDelay(&TcpLedbatPlusPlusModified::MinCircBuf);
             uint32_t baseDelay = BaseDelay();
             queueDelay = currentDelay > baseDelay ? currentDelay - baseDelay : 0;
 
@@ -392,7 +392,7 @@ namespace ns3
         {
             if (m_flag & LEDBAT_VALID_OWD)
             {
-                uint32_t currentDelay = CurrentDelay(&TcpLedbatPlusPlus::MinCircBuf);
+                uint32_t currentDelay = CurrentDelay(&TcpLedbatPlusPlusModified::MinCircBuf);
                 uint32_t baseDelay = BaseDelay();
                 queueDelay = currentDelay > baseDelay ? currentDelay - baseDelay : 0;
                 NS_LOG_INFO("Queue delay: " << queueDelay
@@ -421,7 +421,7 @@ namespace ns3
         {
             if (m_flag & LEDBAT_VALID_OWD)
             {
-                uint32_t currentDelay = CurrentDelay(&TcpLedbatPlusPlus::MinCircBuf);
+                uint32_t currentDelay = CurrentDelay(&TcpLedbatPlusPlusModified::MinCircBuf);
                 uint32_t baseDelay = BaseDelay();
                 queueDelay = currentDelay > baseDelay ? currentDelay - baseDelay : 0;
                 NS_LOG_INFO("Queue delay: " << queueDelay
@@ -446,7 +446,7 @@ namespace ns3
         {
             if (m_flag & LEDBAT_VALID_OWD)
             {
-                uint32_t currentDelay = CurrentDelay(&TcpLedbatPlusPlus::MinCircBuf);
+                uint32_t currentDelay = CurrentDelay(&TcpLedbatPlusPlusModified::MinCircBuf);
                 uint32_t baseDelay = BaseDelay();
                 queueDelay = currentDelay > baseDelay ? currentDelay - baseDelay : 0;
                 NS_LOG_INFO("Queue delay: " << queueDelay
@@ -509,7 +509,7 @@ namespace ns3
     // SlowStart (unchanged logic; GAIN now uses effective target via ComputeGain)
     // ---------------------------------------------------------------------------
     uint32_t
-    TcpLedbatPlusPlus::SlowStart(Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
+    TcpLedbatPlusPlusModified::SlowStart(Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
     {
         NS_LOG_FUNCTION(this << tcb << segmentsAcked);
         if (segmentsAcked >= 1)
@@ -533,7 +533,7 @@ namespace ns3
     // ComputeEffectiveTarget() instead of the raw m_target.
     // ---------------------------------------------------------------------------
     void
-    TcpLedbatPlusPlus::CongestionAvoidance(Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
+    TcpLedbatPlusPlusModified::CongestionAvoidance(Ptr<TcpSocketState> tcb, uint32_t segmentsAcked)
     {
         NS_LOG_FUNCTION(this << tcb << segmentsAcked);
         if ((m_flag & LEDBAT_VALID_OWD) == 0)
@@ -542,7 +542,7 @@ namespace ns3
             return;
         }
 
-        uint32_t currentDelay = CurrentDelay(&TcpLedbatPlusPlus::MinCircBuf);
+        uint32_t currentDelay = CurrentDelay(&TcpLedbatPlusPlusModified::MinCircBuf);
         uint32_t baseDelay = BaseDelay();
         uint32_t segmentSize = tcb->m_segmentSize;
         uint32_t cwnd = tcb->m_cWnd.Get();
@@ -600,7 +600,7 @@ namespace ns3
     // ---------------------------------------------------------------------------
 
     void
-    TcpLedbatPlusPlus::AddDelay(OwdCircBuf &cb, uint32_t owd, uint32_t maxlen)
+    TcpLedbatPlusPlusModified::AddDelay(OwdCircBuf &cb, uint32_t owd, uint32_t maxlen)
     {
         NS_LOG_FUNCTION(this << owd << maxlen << cb.buffer.size());
         if (cb.buffer.empty())
@@ -627,7 +627,7 @@ namespace ns3
     }
 
     void
-    TcpLedbatPlusPlus::UpdateBaseDelay(uint32_t owd)
+    TcpLedbatPlusPlusModified::UpdateBaseDelay(uint32_t owd)
     {
         NS_LOG_FUNCTION(this << owd);
         if (m_baseHistory.buffer.empty())
@@ -656,7 +656,7 @@ namespace ns3
     }
 
     void
-    TcpLedbatPlusPlus::PktsAcked(Ptr<TcpSocketState> tcb,
+    TcpLedbatPlusPlusModified::PktsAcked(Ptr<TcpSocketState> tcb,
                                  uint32_t segmentsAcked,
                                  const Time &rtt)
     {

@@ -34,7 +34,7 @@ namespace ns3
      *     Low  pressure → multiplier → SlowdownMultMax (default 12, less frequent)
      *     Setting both attributes to 9 restores the original RFC behaviour.
      */
-    class TcpLedbatPlusPlus : public TcpNewReno
+    class TcpLedbatPlusPlusModified : public TcpNewReno
     {
     private:
         /**
@@ -66,18 +66,18 @@ namespace ns3
         /**
          * Create an unbound tcp socket.
          */
-        TcpLedbatPlusPlus();
+        TcpLedbatPlusPlusModified();
 
         /**
          * @brief Copy constructor
          * @param sock the object to copy
          */
-        TcpLedbatPlusPlus(const TcpLedbatPlusPlus &sock);
+        TcpLedbatPlusPlusModified(const TcpLedbatPlusPlusModified &sock);
 
         /**
          * @brief Destructor
          */
-        ~TcpLedbatPlusPlus() override;
+        ~TcpLedbatPlusPlusModified() override;
 
         /**
          * @brief Get the name of the TCP flavour
